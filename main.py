@@ -413,17 +413,17 @@ def generate_email_audio(email_body: str, language: str = "en"):
         )
     return generate_tts_from_email(email_body=email_body, language=language)
 
-# Add this near other imports
-templates = Jinja2Templates(directory="templates")
+# Add this near the top of your file
+import os
+from pathlib import Path
 
-# Replace the existing static files mount with these:
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Update the static files configuration
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
-# Add this new route for serving the index page
-@app.get("/")
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
-
+# Update the main block
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
