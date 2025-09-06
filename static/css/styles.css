@@ -1,0 +1,641 @@
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Crimson+Text:wght@400;600&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Crimson Text', serif;
+            background: linear-gradient(135deg, #8B4513 0%, #D2691E 25%, #F4A460 50%, #DEB887 75%, #F5DEB3 100%);
+            min-height: 100vh;
+            color: #2F4F4F;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* Vintage paper texture overlay */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at 1px 1px, rgba(139, 69, 19, 0.15) 1px, transparent 0);
+            background-size: 20px 20px;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .post-office-header {
+            background: linear-gradient(135deg, #8B0000, #DC143C);
+            color: white;
+            text-align: center;
+            padding: 40px 20px;
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            margin-bottom: 0;
+        }
+        
+        .post-office-header::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border: 3px solid #FFD700;
+            border-radius: 10px;
+            pointer-events: none;
+        }
+        
+        .main-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 3rem;
+            font-weight: 900;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+            letter-spacing: 2px;
+        }
+        
+        .postal-code {
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 3px;
+            color: #FFD700;
+            margin-bottom: 15px;
+        }
+        
+        .postmark {
+            display: inline-block;
+            border: 2px dashed #FFD700;
+            border-radius: 50%;
+            padding: 15px;
+            margin-top: 10px;
+            position: relative;
+        }
+        
+        .postmark::before {
+            content: '📮';
+            font-size: 2rem;
+        }
+        
+        .header-quote {
+            margin-top: 15px;
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+        
+        .form-container {
+            background: linear-gradient(145deg, #F5F5DC, #FFFAF0);
+            border: 3px solid #8B4513;
+            border-radius: 0 0 15px 15px;
+            padding: 40px;
+            box-shadow: 
+                0 8px 32px rgba(0, 0, 0, 0.2),
+                inset 0 0 20px rgba(139, 69, 19, 0.1);
+            position: relative;
+        }
+        
+        .form-container::before {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: 20px;
+            right: 20px;
+            height: 20px;
+            background: repeating-linear-gradient(
+                90deg,
+                #8B0000 0px,
+                #8B0000 10px,
+                #FFD700 10px,
+                #FFD700 15px,
+                white 15px,
+                white 20px,
+                #DC143C 20px,
+                #DC143C 30px
+            );
+            border-radius: 10px 10px 0 0;
+        }
+        
+        .mail-section {
+            background: white;
+            border: 2px solid #8B4513;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 8px rgba(139, 69, 19, 0.2);
+            position: relative;
+        }
+        
+        .mail-section::before {
+            content: attr(data-stamp);
+            position: absolute;
+            top: -10px;
+            right: 20px;
+            background: #DC143C;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .section-title {
+            font-family: 'Playfair Display', serif;
+            color: #8B0000;
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .stamp-icon {
+            font-size: 1.5rem;
+        }
+        
+        .input-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .mail-input {
+            background: #FFFEF7;
+            border: 2px solid #D2691E;
+            color: #2F4F4F;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-family: 'Crimson Text', serif;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 2px 4px rgba(139, 69, 19, 0.1);
+        }
+        
+        .mail-input:focus {
+            outline: none;
+            border-color: #8B0000;
+            box-shadow: 
+                inset 0 2px 4px rgba(139, 69, 19, 0.1),
+                0 0 0 3px rgba(220, 20, 60, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .mail-input::placeholder {
+            color: #8B7765;
+            font-style: italic;
+        }
+        
+        .mail-textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: 'Crimson Text', serif;
+        }
+        
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        
+        .delivery-button {
+            background: linear-gradient(145deg, #8B0000, #DC143C);
+            border: none;
+            color: white;
+            font-family: 'Playfair Display', serif;
+            font-weight: 700;
+            font-size: 1.3rem;
+            padding: 20px 50px;
+            border-radius: 25px;
+            cursor: pointer;
+            display: block;
+            margin: 40px auto;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 15px rgba(139, 0, 0, 0.3);
+        }
+        
+        .delivery-button::before {
+            content: '📬 ';
+            margin-right: 10px;
+        }
+        
+        .delivery-button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .delivery-button:hover::after {
+            left: 100%;
+        }
+        
+        .delivery-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 25px rgba(139, 0, 0, 0.4);
+        }
+        
+        .delivery-button:active {
+            transform: translateY(-1px);
+        }
+        
+        /* Popup Styles */
+        .mailbox-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(47, 79, 79, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.4s ease;
+        }
+        
+        .mailbox-overlay.show {
+            display: flex;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .mailbox-popup {
+            background: linear-gradient(145deg, #F5F5DC, #FFFAF0);
+            border: 4px solid #8B4513;
+            border-radius: 20px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 
+                0 0 50px rgba(139, 69, 19, 0.6),
+                inset 0 0 20px rgba(139, 69, 19, 0.1);
+            animation: mailboxOpen 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        
+        @keyframes mailboxOpen {
+            from { 
+                transform: scale(0.3) rotateY(-90deg);
+                opacity: 0;
+            }
+            to { 
+                transform: scale(1) rotateY(0deg);
+                opacity: 1;
+            }
+        }
+        
+        .mailbox-header {
+            background: linear-gradient(135deg, #8B0000, #DC143C);
+            color: white;
+            padding: 25px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .mailbox-header::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            right: 20px;
+            bottom: 10px;
+            border: 2px dashed #FFD700;
+            border-radius: 10px;
+        }
+        
+        .mailbox-title {
+            font-family: 'Playfair Display', serif;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .delivery-notice {
+            font-size: 1.1rem;
+            color: #FFD700;
+            font-style: italic;
+        }
+        
+        .close-btn {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+        
+        .mail-content {
+            padding: 30px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .envelope {
+            background: white;
+            border: 2px solid #8B4513;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            overflow: hidden;
+            box-shadow: 0 6px 12px rgba(139, 69, 19, 0.2);
+            position: relative;
+        }
+        
+        .envelope::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 0;
+            border-left: 30px solid transparent;
+            border-top: 30px solid #DC143C;
+        }
+        
+        .letter {
+            padding: 25px;
+            border-bottom: 2px dashed #D2691E;
+            position: relative;
+        }
+        
+        .letter:last-child {
+            border-bottom: none;
+        }
+        
+        .letter::before {
+            content: '📧';
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 1.5rem;
+        }
+        
+        .mail-header {
+            font-family: 'Playfair Display', serif;
+            color: #8B0000;
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .mail-field {
+            margin-bottom: 15px;
+            padding: 10px 0;
+        }
+        
+        .mail-label {
+            color: #8B4513;
+            font-weight: 600;
+            font-size: 1rem;
+            display: block;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .mail-content-text {
+            color: #2F4F4F;
+            line-height: 1.6;
+            font-size: 1.05rem;
+            background: #FFFEF7;
+            padding: 12px;
+            border-radius: 5px;
+            border-left: 4px solid #D2691E;
+        }
+        
+        /* IMPORTANT: Postal Actions - Initially Hidden, Shown by JavaScript */
+        .postal-actions {
+            display: none; /* Initially hidden - JS will show after results */
+            flex-wrap: wrap;
+            gap: 15px;
+            justify-content: center;
+            padding: 25px;
+            background: linear-gradient(145deg, #F5F5DC, #FFFAF0);
+            border-top: 2px dashed #8B4513;
+            border-radius: 0 0 15px 15px;
+        }
+        
+        .postal-btn {
+            background: linear-gradient(145deg, #D2691E, #F4A460);
+            border: 2px solid #8B4513;
+            color: #2F4F4F;
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            font-size: 1rem;
+        }
+        
+        .postal-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.5s;
+        }
+        
+        .postal-btn:hover::before {
+            transform: translateX(100%);
+        }
+        
+        .postal-btn:hover {
+            background: linear-gradient(145deg, #F4A460, #DEB887);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(139, 69, 19, 0.3);
+        }
+        
+        .loading-mail {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .mail-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #D2691E;
+            border-top: 4px solid #8B0000;
+            border-radius: 50%;
+            animation: mailSpin 1s linear infinite;
+            margin: 0 auto 25px;
+        }
+        
+        @keyframes mailSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: #8B4513;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+        
+        .loading-subtext {
+            color: #D2691E;
+            font-style: italic;
+            font-size: 1rem;
+        }
+        
+        .error-delivery {
+            color: #8B0000;
+            text-align: center;
+            padding: 40px 20px;
+            font-size: 1.2rem;
+        }
+        
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        /* Notification toast */
+        .notification-toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(145deg, #F5F5DC, #FFFAF0);
+            border: 2px solid #8B4513;
+            border-radius: 10px;
+            padding: 15px 25px;
+            box-shadow: 0 8px 25px rgba(139, 69, 19, 0.4);
+            z-index: 2000;
+            font-family: 'Crimson Text', serif;
+            font-weight: 600;
+            color: #2F4F4F;
+            animation: toastSlide 0.3s ease;
+        }
+        
+        @keyframes toastSlide {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+        
+        /* Custom scrollbar for postal theme */
+        ::-webkit-scrollbar {
+            width: 14px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #F5F5DC;
+            border: 1px solid #D2691E;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #8B4513, #D2691E);
+            border-radius: 7px;
+            border: 1px solid #8B4513;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #D2691E, #F4A460);
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 2.2rem;
+            }
+            
+            .input-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .mailbox-popup {
+                max-width: 95%;
+                max-height: 95%;
+            }
+            
+            .postal-actions {
+                flex-direction: column;
+                align-items: center;
+                padding: 20px;
+            }
+            
+            .postal-btn {
+                width: 200px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .main-title {
+                font-size: 1.8rem;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .form-container,
+            .post-office-header {
+                padding: 20px;
+            }
+        }

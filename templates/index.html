@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Campaign Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/styles.css') }}">
+</head>
+<body>
+  <div class="container">
+    <header class="post-office-header">
+      <h1 class="main-title">📮 CENTRAL POST OFFICE</h1>
+      <div class="postal-code">EMAIL CAMPAIGN DISPATCH</div>
+      <div class="postmark" aria-hidden="true"></div>
+      <p class="header-quote">
+        "Neither rain nor heat nor gloom of night stays these couriers from the swift completion of their appointed campaigns"
+      </p>
+    </header>
+
+    <main class="form-container">
+      <form id="campaignForm" novalidate>
+        <section class="mail-section" data-stamp="PRIORITY" aria-labelledby="account-info-title">
+          <h2 id="account-info-title" class="section-title">
+            <span class="stamp-icon" aria-hidden="true">🏢</span>
+            Account Information
+          </h2>
+          <div class="input-group">
+            <input type="text" class="mail-input" id="accountName" name="accountName" placeholder="Company Name" autocomplete="organization" required />
+            <input type="text" class="mail-input" id="industry" name="industry" placeholder="Industry Sector" required />
+          </div>
+          <div class="input-group">
+            <textarea class="mail-input mail-textarea" id="painPoints" name="painPoints" placeholder="Business Challenges (separate with commas)" required></textarea>
+            <input type="text" class="mail-input" id="interest" name="interest" placeholder="Primary Interest/Focus Area" required />
+          </div>
+          <div class="input-group">
+            <label class="visually-hidden" for="objective">Campaign Objective</label>
+            <select class="mail-input" id="objective" name="objective" required>
+              <option value="">📋 Select Campaign Objective</option>
+              <option value="awareness">🎯 Brand Awareness</option>
+              <option value="nurturing">🌱 Lead Nurturing</option>
+              <option value="upselling">📈 Upselling Campaign</option>
+            </select>
+
+            <label class="visually-hidden" for="tone">Communication Tone</label>
+            <select class="mail-input" id="tone" name="tone" required>
+              <option value="">🎭 Select Communication Tone</option>
+              <option value="formal">👔 Professional & Formal</option>
+              <option value="casual">😊 Friendly & Casual</option>
+              <option value="enthusiastic">🚀 Energetic & Enthusiastic</option>
+              <option value="neutral">⚖️ Balanced & Neutral</option>
+            </select>
+
+            <input type="text" class="mail-input" id="language" name="language" placeholder="Language (e.g., English, Spanish)" required />
+          </div>
+        </section>
+
+        <section class="mail-section" data-stamp="URGENT" aria-labelledby="recipient-details-title">
+          <h2 id="recipient-details-title" class="section-title">
+            <span class="stamp-icon" aria-hidden="true">👤</span>
+            Recipient Details
+          </h2>
+          <div class="input-group">
+            <input type="text" class="mail-input" id="contactName" name="contactName" placeholder="Contact Full Name" autocomplete="name" required />
+            <input type="email" class="mail-input" id="contactEmail" name="contactEmail" placeholder="Email Address" autocomplete="email" required />
+            <input type="text" class="mail-input" id="jobTitle" name="jobTitle" placeholder="Job Title/Position" required />
+          </div>
+        </section>
+
+        <section class="mail-section" data-stamp="EXPRESS" aria-labelledby="settings-title">
+          <h2 id="settings-title" class="section-title">
+            <span class="stamp-icon" aria-hidden="true">⚙️</span>
+            Mail Campaign Settings
+          </h2>
+          <div class="input-group">
+            <input type="number" class="mail-input" id="numberOfEmails" name="numberOfEmails" min="1" max="10" placeholder="Number of Email Letters (1-10)" required />
+          </div>
+        </section>
+
+        <button type="submit" class="delivery-button" id="dispatchBtn">
+          Dispatch Campaign
+        </button>
+      </form>
+    </main>
+  </div>
+
+  <!-- Mailbox Popup Modal -->
+  <div class="mailbox-overlay" id="mailboxOverlay" role="dialog" aria-modal="true" aria-labelledby="mailboxTitle" aria-hidden="true">
+    <div class="mailbox-popup">
+      <div class="mailbox-header">
+        <div id="mailboxTitle" class="mailbox-title">📬 MAIL DELIVERY COMPLETE</div>
+        <div class="delivery-notice">Your campaign has been successfully processed</div>
+        <button class="close-btn" id="closeMailbox" type="button" aria-label="Close dialog">&times;</button>
+      </div>
+      <div class="mail-content" id="mailContent" tabindex="0">
+        <!-- Mail content will be inserted here -->
+      </div>
+      <div class="postal-actions" id="postalActions">
+        <button class="postal-btn" id="btnExportCsv">
+            📋 Export to CSV
+        </button>
+        <button class="postal-btn" id="btnGenerateAudio">
+            🎧 Generate Audio
+        </button>
+        <button class="postal-btn" id="btnCopy">
+            📝 Copy Content
+        </button>
+        <button class="postal-btn" id="btnPrint">
+            🖨️ Print Campaign
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', path='/js/script.js') }}"></script>
+</body>
+</html>
