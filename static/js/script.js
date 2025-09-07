@@ -56,7 +56,7 @@ campaignForm.addEventListener('submit', async (e) => {
     try {
         // For demonstration purposes, we'll simulate the API response
         // Replace this with actual API call when backend is available
-        const data = await simulateAPIResponse(formData);
+        const data = await sendCampaignRequest(formData);
         
         currentMailData = { formData, data };
         displayMailResults(data);
@@ -82,34 +82,21 @@ campaignForm.addEventListener('submit', async (e) => {
 });
 
 /* Simulate API response for testing - replace with actual API call */
-async function simulateAPIResponse(formData) {
-    // Simulate loading time
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const numberOfEmails = formData.number_of_emails;
-    const emails = [];
-    
-    for (let i = 0; i < numberOfEmails; i++) {
-        emails.push({
-            variants: [{
-                subject: `Unlock Growth Opportunities for ${formData.accounts[0].account_name} - Email ${i + 1}`,
-                body: `Dear ${formData.accounts[0].contacts[0].name},\n\nI hope this email finds you well. As someone working in the ${formData.accounts[0].industry} industry, I understand the unique challenges you face, particularly around ${formData.accounts[0].pain_points[0] || 'operational efficiency'}.\n\nOur solutions are specifically designed to address these pain points and help companies like ${formData.accounts[0].account_name} achieve their goals in ${formData.accounts[0].interest}.\n\nWould you be interested in a brief conversation to explore how we can support your initiatives?\n\nBest regards,\nYour Campaign Team`,
-                call_to_action: "Schedule a 15-minute discovery call",
-                suggested_send_time: i === 0 ? "Tuesday 10:00 AM" : `${['Wednesday', 'Friday', 'Monday', 'Thursday'][i % 4]} ${['9:00', '2:00', '11:00', '3:00'][i % 4]} ${'AM PM'.split(' ')[i % 2]}`,
-                sub_variants: [
-                    `Transform ${formData.accounts[0].account_name}'s ${formData.accounts[0].interest} Strategy`,
-                    `${formData.accounts[0].contacts[0].name}, Let's Discuss Your ${formData.accounts[0].industry} Goals`,
-                    `Quick Question About ${formData.accounts[0].account_name}'s Growth Plans`
-                ]
-            }]
-        });
+async function sendCampaignRequest(formData) {
+    const response = await fetch('/generate-campaigns/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to generate campaigns');
     }
-    
-    return {
-        campaigns: [{
-            emails: emails
-        }]
-    };
+
+    return response.json();
 }
 
 /* Modal controls */
@@ -225,19 +212,31 @@ async function exportPostalCSV() {
     }
 
     try {
-        // Create CSV content from the current mail data
-        const csvContent = generateCSVContent(currentMailData);
-        
-        // Create and download the CSV file
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const response = await fetch('/export-campaigns-csv/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(currentMailData.formData),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to export CSV');
+        }
+
+        const blob = await response.blob();
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
+        const filename = filenameMatch ? filenameMatch[1] : `campaigns_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `postal_campaign_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+        a.download = filename;
         document.body.appendChild(a);
         a.click();
         
-        // Clean up
         setTimeout(() => {
             URL.revokeObjectURL(url);
             document.body.removeChild(a);
@@ -249,27 +248,27 @@ async function exportPostalCSV() {
     }
 }
 
-function generateCSVContent(mailData) {
-    const headers = ['Email Number', 'Subject', 'Body', 'Call to Action', 'Send Time', 'Alternative Subjects'];
-    const rows = [headers.join(',')];
+// function generateCSVContent(mailData) { // This function is no longer needed as the backend handles CSV generation
+//     const headers = ['Email Number', 'Subject', 'Body', 'Call to Action', 'Send Time', 'Alternative Subjects'];
+//     const rows = [headers.join(',')];
     
-    if (mailData.data.campaigns && mailData.data.campaigns[0] && mailData.data.campaigns[0].emails) {
-        mailData.data.campaigns[0].emails.forEach((email, index) => {
-            const variant = email.variants && email.variants[0] ? email.variants[0] : {};
-            const row = [
-                index + 1,
-                `"${(variant.subject || '').replace(/"/g, '""')}"`,
-                `"${(variant.body || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
-                `"${(variant.call_to_action || '').replace(/"/g, '""')}"`,
-                `"${(variant.suggested_send_time || '').replace(/"/g, '""')}"`,
-                `"${variant.sub_variants ? variant.sub_variants.join('; ').replace(/"/g, '""') : ''}"`
-            ];
-            rows.push(row.join(','));
-        });
-    }
+//     if (mailData.data.campaigns && mailData.data.campaigns[0] && mailData.data.campaigns[0].emails) {
+//         mailData.data.campaigns[0].emails.forEach((email, index) => {
+//             const variant = email.variants && email.variants[0] ? email.variants[0] : {};
+//             const row = [
+//                 index + 1,
+//                 `"${(variant.subject || '').replace(/"/g, '""')}"`,
+//                 `"${(variant.body || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+//                 `"${(variant.call_to_action || '').replace(/"/g, '""')}"`,
+//                 `"${(variant.suggested_send_time || '').replace(/"/g, '""')}"`,
+//                 `"${variant.sub_variants ? variant.sub_variants.join('; ').replace(/"/g, '""') : ''}"`
+//             ];
+//             rows.push(row.join(','));
+//         });
+//     }
     
-    return rows.join('\n');
-}
+//     return rows.join('\n');
+// }
 
 async function generateMailAudio() {
     if (!currentMailData) {
@@ -287,28 +286,39 @@ async function generateMailAudio() {
             return;
         }
 
-        // Use Web Speech API for text-to-speech
-        if ('speechSynthesis' in window) {
-            const utterance = new SpeechSynthesisUtterance(emailBody);
-            utterance.rate = 0.8;
-            utterance.pitch = 1;
-            utterance.volume = 0.8;
-            
-            // Try to use a more natural voice if available
-            const voices = speechSynthesis.getVoices();
-            const englishVoice = voices.find(voice => 
-                voice.lang.startsWith('en') && voice.name.includes('Natural')
-            ) || voices.find(voice => voice.lang.startsWith('en'));
-            
-            if (englishVoice) {
-                utterance.voice = englishVoice;
+        const emailLanguage = currentMailData.formData.accounts[0].language;
+
+        try {
+            const response = await fetch('/generate-email-audio/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email_body: emailBody,
+                    language: emailLanguage || 'en'
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to generate audio');
             }
 
-            speechSynthesis.speak(utterance);
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            audio.play();
+            
+            audio.onended = () => {
+                URL.revokeObjectURL(audioUrl);
+            };
+
             showMailNotification('🎧 Voice Mail is now playing');
-        } else {
-            showMailNotification('🎵 Audio generation not supported in this browser');
+        } catch (error) {
+            showMailNotification('🎵 Audio Error: ' + error.message);
         }
+
     } catch (error) {
         showMailNotification('🎵 Audio Error: ' + error.message);
     }

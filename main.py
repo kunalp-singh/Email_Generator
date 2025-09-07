@@ -4,9 +4,10 @@ from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from pydantic import BaseModel, EmailStr, Field
-from typing import List, Literal, Optional, Union
+from typing import List, Literal, Optional, Dict, Any
 import google.generativeai as genai
 from google.api_core import retry
+import requests
 from pathlib import Path
 from datetime import datetime
 from io import StringIO, BytesIO
@@ -22,6 +23,7 @@ import re
 import csv
 import random
 import logging
+from starlette.responses import HTMLResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,9 +32,8 @@ load_dotenv()
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
-    raise ValueError("Missing GEMINI_API_KEY environment variable")
+    logger.warning("Missing GEMINI_API_KEY environment variable")
 
-# Fixed Pydantic models with proper typing and defaults
 class Contact(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     email: EmailStr
@@ -44,17 +45,17 @@ class Account(BaseModel):
     industry: str = Field(..., min_length=1, max_length=100)
     pain_points: List[str] = Field(..., min_items=1, max_items=5)
     contacts: List[Contact] = Field(..., min_items=1)
-    campaign_objective: Literal["awareness", "nurturing", "upselling"]
+    campaign_objective: Literal["awareness", "nurturing", "upselling"] = "awareness"
     interest: str = Field(..., min_length=1, max_length=100)
     tone: Literal["formal", "casual", "enthusiastic", "neutral"] = "neutral"
-    language: str = Field(..., min_length=1, max_length=200)
+    language: str = Field(default="en", min_length=1, max_length=200)
 
 class EmailVariant(BaseModel):
     subject: str
     body: str
     call_to_action: str
-    sub_variants: List[str] = Field(default_factory=list)  # Fixed: use default_factory
-    suggested_send_time: str  # Fixed: was missing _send_time
+    sub_variants: List[str] = []
+    suggested_send_time: str
 
 class Email(BaseModel):
     variants: List[EmailVariant]
@@ -70,26 +71,22 @@ class CampaignRequest(BaseModel):
 class CampaignResponse(BaseModel):
     campaigns: List[Campaign]
 
-# Fixed: Add a proper request model for audio generation
 class AudioRequest(BaseModel):
     email_body: str
     language: str = "en"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if not GEMINI_API_KEY:
-        raise ValueError("API key for Gemini is required")
-    # Initialize Gemini here
-    genai.configure(api_key=GEMINI_API_KEY)
-    try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
-        response = model.generate_content("Test")
-        if not response:
-            raise ValueError("Unable to generate test content")
-        logger.info("Gemini API initialized successfully")
-    except Exception as e:
-        logger.error(f"Failed to configure Gemini API: {str(e)}")
-        raise
+    if GEMINI_API_KEY:
+        try:
+            genai.configure(api_key=GEMINI_API_KEY)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            # Test the connection
+            response = model.generate_content("Test")
+            if response:
+                logger.info("Gemini API initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to configure Gemini API: {str(e)}")
     yield
 
 app = FastAPI(
@@ -115,8 +112,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.requests = defaultdict(list)
 
     async def dispatch(self, request: Request, call_next):
-        # Fixed: handle None client more robustly
-        client_ip = getattr(request.client, 'host', 'unknown') if request.client else 'unknown'
+        client_ip = request.client.host if request.client else "unknown"
         now = time.time()
         
         self.requests[client_ip] = [req_time for req_time in self.requests[client_ip] 
@@ -135,6 +131,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 app.add_middleware(RateLimitMiddleware, calls=10, period=60)
 
 def get_gemini_client():
+    if not GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=500,
+            detail="Gemini API key not configured"
+        )
     return genai
 
 def get_default_interests(job_title: str) -> List[str]:
@@ -159,12 +160,13 @@ def search_client_interests(name: str, job_title: str) -> List[str]:
     try:
         logger.info(f"Using fallback interests for {name}")
         return get_default_interests(job_title)
+                                              
     except Exception as e:
         logger.error(f"Error in search_client_interests: {str(e)}")
         return ["professional development", "industry trends", "business growth"]
 
 @retry.Retry(predicate=retry.if_exception_type(Exception))
-def generate_email_content(client: genai, account: Account, email_number: int, total_emails: int, tone: str) -> List[EmailVariant]:
+def generate_email_content(client, account: Account, email_number: int, total_emails: int, tone: str) -> List[EmailVariant]:
     try:
         client_interests = get_client_interests(account.contacts[0].name, account.contacts[0].job_title)
 
@@ -180,50 +182,64 @@ def generate_email_content(client: genai, account: Account, email_number: int, t
         Tone: {tone}
         Language: {account.language}
 
-        Generate a catchy and engaging subject line, personalized for the account and campaign objective. Please generate three distinct subject lines.
+        Generate a catchy and engaging subject line, personalized for the account and campaign objective. Please generate **three distinct subject lines**.
 
         Then, write the email body content with the following structure:
         1. An engaging email body personalized to the pain points and interest of the account
         2. A clear call-to-action encouraging the recipient to take the next step.
         3. Ensure the body is cohesive and flows well with the subject.
 
-        Format the response as valid JSON with keys: "subject", "body", "call_to_action", "sub_variants"
+        Format the response as valid JSON with keys: "subject", "body", "call_to_action"
         """
 
         model = client.GenerativeModel("gemini-1.5-flash")
+        
+        # Generation config using dictionary format
+        generation_config = {
+            "temperature": 0.7,
+            "top_p": 0.8,
+            "top_k": 40,
+            "max_output_tokens": 1024,
+        }
+        
+        # Safety settings using string constants
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH", 
+                "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+            }
+        ]
+        
         response = model.generate_content(
             prompt,
-            generation_config=genai.GenerationConfig(  # Fixed: proper GenerationConfig usage
-                temperature=0.7,
-                top_p=0.8,
-                top_k=40,
-                max_output_tokens=1024,
-            ),
-            safety_settings=[
-                genai.SafetySetting(  # Fixed: proper SafetySetting usage
-                    category=genai.HarmCategory.HARM_CATEGORY_HARASSMENT,
-                    threshold=genai.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
-                ),
-                genai.SafetySetting(
-                    category=genai.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-                    threshold=genai.HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE
-                )
-            ]
+            generation_config=generation_config,
+            safety_settings=safety_settings
         )
         
         if not response or not response.text:
             raise ValueError("Empty response from Gemini API")
             
         response_text = response.text.strip()
+        
     except Exception as e:
         logger.error(f"Error in generate_email_content: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to generate email content: {str(e)}"
-        )
+        # Fallback response
+        return [
+            EmailVariant(
+                subject=f"Personalized Solution for {account.account_name}",
+                body=f"Dear {account.contacts[0].name},\n\nI hope this email finds you well. I wanted to reach out regarding the challenges {account.account_name} may be facing in {account.industry}.\n\nBased on our research, we understand that {', '.join(account.pain_points)} are key areas where we could potentially help.\n\nBest regards,\nThe Team",
+                call_to_action="Schedule a 15-minute discovery call to learn more",
+                sub_variants=[f"Solution for {account.account_name}", f"Addressing {account.industry} Challenges"],
+                suggested_send_time="9 AM - 11 AM"
+            )
+        ]
 
     try:
-        json_match = re.search(r"``````", response_text, re.DOTALL)
+        json_match = re.search(r"```json(.+?)```", response_text, re.DOTALL)
         if json_match:
             json_str = json_match.group(1).strip()
             email_data = json.loads(json_str)
@@ -231,13 +247,13 @@ def generate_email_content(client: genai, account: Account, email_number: int, t
             email_data = json.loads(response_text)
     except json.JSONDecodeError:
         email_data = {
-            "subject": ["Subject Line Here"],
+            "subject": f"Personalized Solution for {account.account_name}",
             "body": response_text,
-            "call_to_action": "Call to Action Here",
-            "sub_variants": ["Subject Line Here"]
+            "call_to_action": "Schedule a call to learn more",
+            "sub_variants": [f"Solution for {account.account_name}"]
         }
 
-    subject = email_data.get("subject", ["Subject Line Here"])
+    subject = email_data.get("subject", f"Personalized Solution for {account.account_name}")
     if isinstance(subject, list):
         subject = subject[0]
 
@@ -245,7 +261,7 @@ def generate_email_content(client: genai, account: Account, email_number: int, t
     if isinstance(sub_variants, str):
         sub_variants = [sub_variants]
 
-    salutation = f" Best regards, The {account.account_name} Team"
+    salutation = f"\n\nBest regards,\nThe {account.account_name} Team"
 
     send_times = {
         "morning": "8 AM - 10 AM",
@@ -263,15 +279,17 @@ def generate_email_content(client: genai, account: Account, email_number: int, t
     return [
         EmailVariant(
             subject=subject,
-            body=email_data.get("body", "").replace("\n", ""),
-            call_to_action=email_data.get("call_to_action", "").replace("\n", "") + salutation.replace("\n", ""),
+            body=email_data.get("body", "").replace("\n", " "),
+            call_to_action=email_data.get("call_to_action", "").replace("\n", " ") + salutation,
             sub_variants=sub_variants,
             suggested_send_time=recommended_send_time
         )
     ]
 
-def generate_campaign(client: genai, account: Account, number_of_emails: int) -> Campaign:
+def generate_campaign(client, account: Account, number_of_emails: int) -> Campaign:
     emails = []
+    
+    # Assign random groups to contacts
     for contact in account.contacts:
         contact.group = random.choice(["A", "B"])
 
@@ -282,6 +300,16 @@ def generate_campaign(client: genai, account: Account, number_of_emails: int) ->
 
     return Campaign(account_name=account.account_name, emails=emails)
 
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    if not templates_dir.exists():
+        raise HTTPException(status_code=404, detail="Templates directory not found")
+    return templates.TemplateResponse("index.html", {"request": request, "message": "Email Drip Campaign API is running"})
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
 @app.post(
     "/generate-campaigns/",
     response_model=CampaignResponse,
@@ -290,7 +318,7 @@ def generate_campaign(client: genai, account: Account, number_of_emails: int) ->
 )
 def generate_campaigns(
     request: CampaignRequest,
-    client: genai = Depends(get_gemini_client)
+    client = Depends(get_gemini_client)
 ) -> CampaignResponse:
     try:
         campaigns = []
@@ -324,55 +352,65 @@ def generate_campaigns(
 )
 def export_campaigns_csv(
     request: CampaignRequest,
-    client: genai = Depends(get_gemini_client)
+    client = Depends(get_gemini_client)
 ):
-    campaigns_response = generate_campaigns(request, client)
-
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Account Name', 'Email Number', 'Variant', 'Subject', 'Sub-Variants', 'Body', 'Call to Action', 'Recommended Send Time'])
-
-    for campaign in campaigns_response.campaigns:
-        for email_idx, email in enumerate(campaign.emails, 1):
-            for variant_idx, variant in enumerate(email.variants, 1):
-                writer.writerow([
-                    campaign.account_name,
-                    f"Email {email_idx}",
-                    f"Variant {variant_idx}",
-                    variant.subject,
-                    "; ".join(variant.sub_variants),
-                    variant.body,
-                    variant.call_to_action,
-                    variant.suggested_send_time
-                ])
-
-    output.seek(0)
-    filename = f"campaigns_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-    return StreamingResponse(
-        iter([output.getvalue()]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
-    )
-
-def generate_tts_from_email(email_body: str, language: str = "en") -> StreamingResponse:
     try:
-        email_body = email_body.replace("\n", "")
-        tts = gTTS(text=email_body, lang=language, slow=False)
+        campaigns_response = generate_campaigns(request, client)
+
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Account Name', 'Email Number', 'Variant', 'Subject', 'Sub-Variants', 'Body', 'Call to Action', 'Recommended Send Time'])
+
+        for campaign in campaigns_response.campaigns:
+            for email_idx, email in enumerate(campaign.emails, 1):
+                for variant_idx, variant in enumerate(email.variants, 1):
+                    writer.writerow([
+                        campaign.account_name,
+                        f"Email {email_idx}",
+                        f"Variant {variant_idx}",
+                        variant.subject,
+                        "; ".join(variant.sub_variants),
+                        variant.body,
+                        variant.call_to_action,
+                        variant.suggested_send_time
+                    ])
+
+        output.seek(0)
+        filename = f"campaigns_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        logger.error(f"Error in export_campaigns_csv: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"CSV export failed: {str(e)}"
+        )
+
+def generate_tts_from_email(email_body: str, language: str = "en", speed: float = 1.5) -> StreamingResponse:
+    try:
+        clean_body = email_body.replace("\n", " ").strip()
+        if not clean_body:
+            raise ValueError("Email body is empty")
+            
+        tts = gTTS(text=clean_body, lang=language, slow=False)
         audio_file = BytesIO()
         tts.write_to_fp(audio_file)
         audio_file.seek(0)
 
         return StreamingResponse(
-            audio_file,
+            iter([audio_file.getvalue()]),
             media_type="audio/mpeg",
             headers={"Content-Disposition": "attachment; filename=email_audio.mp3"}
         )
     except Exception as e:
+        logger.error(f"Error generating TTS: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error generating speech: {str(e)}")
 
-SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de']
+SUPPORTED_LANGUAGES = ['en', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ja', 'ko', 'zh']
 
-# Fixed: Use proper request model instead of raw parameters
 @app.post("/generate-email-audio/")
 def generate_email_audio(request: AudioRequest):
     if request.language not in SUPPORTED_LANGUAGES:
@@ -382,19 +420,18 @@ def generate_email_audio(request: AudioRequest):
         )
     return generate_tts_from_email(email_body=request.email_body, language=request.language)
 
-# Static files and templates
+# Optional: Mount static files and templates only if directories exist
 BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+templates_dir = BASE_DIR / "templates"
+static_dir = BASE_DIR / "static"
 
-# Add a root route for the UI
-@app.get("/")
-def read_root(request: Request):
-    try:
-        return templates.TemplateResponse("index.html", {"request": request})
-    except Exception:
-        return {"message": "Email Campaign Generator API", "docs": "/docs"}
+if templates_dir.exists():
+    templates = Jinja2Templates(directory=str(templates_dir))
 
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# For Vercel deployment
 if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
